@@ -1,0 +1,13 @@
+log_dir: "./log"
+
+task_queue:
+    max_workers: 1
+    max_buffer: 1024
+
+tasks:
+    - type: "bash"
+      todo: "echo hello world"
+      duration: 10 #seconds
+    - type: "bash"
+      todo: "echo hello again"
+      duration: 20 #seconds
