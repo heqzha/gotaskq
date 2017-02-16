@@ -6,12 +6,13 @@ task_queue:
 
 tasks:
     - type: "cmd"
-      name: "python"
-      args: ["say.py","-f -t limitedfree -l cn -p"]
-      output: "stdout"
+      name: "echo"
+      args: ["hello","world"]
+      output: "file"
+      output_file: "./1.log"
       duration: 10 #seconds
     - type: "cmd"
       name: "echo"
       args: ["hello again"]
       output: "stdout"
-      duration: 20 #seconds
+      duration: 4 #seconds

@@ -28,11 +28,12 @@ type TaskQueueT struct {
 }
 
 type TaskT struct {
-	Type     string   `yaml:"type"`
-	Name     string   `yaml:"name"`
-	Args     []string `yaml:"args"`
-	Output   string   `yaml:"output"`
-	Duration int64    `yaml:"duration"`
+	Type       string   `yaml:"type"`
+	Name       string   `yaml:"name"`
+	Args       []string `yaml:"args"`
+	Output     string   `yaml:"output"`
+	OutputFile string   `yaml:"output_file"`
+	Duration   int64    `yaml:"duration"`
 }
 
 type ConfigT struct {

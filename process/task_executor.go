@@ -1,12 +1,17 @@
 package process
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"io"
+	"os"
 	"time"
 
 	"github.com/heqzha/gotaskq/conf"
 	"github.com/heqzha/gotaskq/handler"
 	ccc "github.com/heqzha/goutils/concurrency"
+	gufile "github.com/heqzha/goutils/file"
 	"github.com/heqzha/goutils/flow"
 	"github.com/heqzha/goutils/logger"
 )
@@ -34,7 +39,7 @@ func StopAll() error {
 }
 
 func RunTaskExecutor(workers *ccc.WorkersPool, tasks []*conf.TaskT) error {
-	l, err := fh.NewLine(switcher, running, sleep)
+	l, err := fh.NewLine(switcher, outputer, running, sleep)
 	if err != nil {
 		return err
 	}
@@ -62,39 +67,74 @@ func switcher(c *flow.Context) {
 	}
 }
 
+func outputer(c *flow.Context) {
+	t := c.MustGet("task").(*conf.TaskT)
+	switch t.Output {
+	case "stdout":
+		c.Set("outputer", stdout)
+		c.Next()
+		return
+	case "file":
+		c.Set("outputer", file)
+		c.Set("outputerArgs", t.OutputFile)
+		c.Next()
+		return
+	}
+}
+
 func running(c *flow.Context) {
 	defer c.Next()
 	w := c.MustGet("workers").(*ccc.WorkersPool)
 	t := c.MustGet("task").(*conf.TaskT)
 	f := c.MustGet("func").(func(interface{}) interface{})
-	output := make(chan interface{}, 16)
-	w.CollectWithOutput(f, map[string]interface{}{
-		"name": t.Name,
-		"args": t.Args,
-	}, 0, output)
-
-	select {
-	case o := <-output:
-		m := o.(map[string]interface{})
-		if m["err"] != nil {
-			err := m["err"].(error)
-			logger.Error("RunTaskExecutor.running", err.Error())
-		} else {
-			switch t.Output {
-			case "stdout":
-				fmt.Println(string(m["output"].([]byte)))
-			}
-		}
-	}
+	o := c.MustGet("outputer").(func(io.Reader, interface{}) error)
+	oa, _ := c.Get("outputerArgs")
+	w.Collect(f, map[string]interface{}{
+		"outputer":     o,
+		"outputerArgs": oa,
+		"name":         t.Name,
+		"args":         t.Args,
+	}, 0)
 }
 
 func cmd(params interface{}) interface{} {
 	mp := params.(map[string]interface{})
-	output, err := handler.ExeSync(mp["name"].(string), mp["args"].([]string)...)
-	return map[string]interface{}{
-		"output": output,
-		"err":    err,
+	if err := handler.ExeSync(mp["outputer"].(func(io.Reader, interface{}) error), mp["outputerArgs"], mp["name"].(string), mp["args"].([]string)...); err != nil {
+		logger.Error("RunTaskExecutor.cmd", err.Error())
 	}
+	return nil
+}
+
+func stdout(r io.Reader, outputerArgs interface{}) error {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r)
+	fmt.Print(buf.String())
+	return nil
+}
+
+func file(r io.Reader, outputerArgs interface{}) error {
+	fileName := outputerArgs.(string)
+	if !gufile.Exists(fileName) {
+		path, err := gufile.GetPath(fileName)
+		if err != nil {
+			return err
+		}
+		fmt.Println(path)
+		if err := gufile.MkPath(path, 0777); err != nil {
+			return err
+		}
+	}
+	f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0777)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	defer w.Flush()
+	if _, err := io.Copy(w, r); err != nil {
+		return err
+	}
+	return nil
 }
 
 func sleep(c *flow.Context) {
