@@ -77,7 +77,7 @@ func init() {
 
 	if *configFile == "__unset__" {
 		p, _ := os.Getwd()
-		*configFile = filepath.Join(p, "config/config.yml")
+		*configFile = filepath.Join(p, "config.yml")
 	}
 
 	confFile, err := filepath.Abs(*configFile)

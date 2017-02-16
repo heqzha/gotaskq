@@ -6,8 +6,8 @@ task_queue:
 
 tasks:
     - type: "cmd"
-      name: "echo"
-      args: ["hello","world"]
+      name: "python"
+      args: ["say.py","-f -t limitedfree -l cn -p"]
       output: "stdout"
       duration: 10 #seconds
     - type: "cmd"
