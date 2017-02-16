@@ -5,9 +5,13 @@ task_queue:
     max_buffer: 1024
 
 tasks:
-    - type: "bash"
-      todo: "echo hello world"
+    - type: "cmd"
+      name: "echo"
+      args: ["hello","world"]
+      output: "stdout"
       duration: 10 #seconds
-    - type: "bash"
-      todo: "echo hello again"
+    - type: "cmd"
+      name: "echo"
+      args: ["hello again"]
+      output: "stdout"
       duration: 20 #seconds

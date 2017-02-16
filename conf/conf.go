@@ -23,17 +23,20 @@ var (
 )
 
 type TaskQueueT struct {
-	MaxWorkers int64 `yaml:"max_workers"`
-	MaxBuffer  int64 `yaml:"max_buffer"`
+	MaxWorkers int `yaml:"max_workers"`
+	MaxBuffer  int `yaml:"max_buffer"`
 }
 
 type TaskT struct {
-	Type     string `yaml:"type"`
-	Todo     string `yaml:"todo"`
-	Duration string `yaml:"duration"`
+	Type     string   `yaml:"type"`
+	Name     string   `yaml:"name"`
+	Args     []string `yaml:"args"`
+	Output   string   `yaml:"output"`
+	Duration int64    `yaml:"duration"`
 }
 
 type ConfigT struct {
+	LogDir    string      `yaml:"log_dir"`
 	TaskQueue *TaskQueueT `yaml:"task_queue"`
 	Tasks     []*TaskT    `yaml:"tasks"`
 }
