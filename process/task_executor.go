@@ -1,10 +1,8 @@
 package process
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"time"
 
@@ -87,7 +85,7 @@ func running(c *flow.Context) {
 	w := c.MustGet("workers").(*ccc.WorkersPool)
 	t := c.MustGet("task").(*conf.TaskT)
 	f := c.MustGet("func").(func(interface{}) interface{})
-	o := c.MustGet("outputer").(func(io.Reader, interface{}) error)
+	o := c.MustGet("outputer").(func(*bytes.Buffer, interface{}))
 	oa, _ := c.Get("outputerArgs")
 	w.Collect(f, map[string]interface{}{
 		"outputer":     o,
@@ -99,42 +97,37 @@ func running(c *flow.Context) {
 
 func cmd(params interface{}) interface{} {
 	mp := params.(map[string]interface{})
-	if err := handler.ExeSync(mp["outputer"].(func(io.Reader, interface{}) error), mp["outputerArgs"], mp["name"].(string), mp["args"].([]string)...); err != nil {
+	if err := handler.ExeSync(mp["outputer"].(func(*bytes.Buffer, interface{})), mp["outputerArgs"], mp["name"].(string), mp["args"].([]string)...); err != nil {
 		logger.Error("RunTaskExecutor.cmd", err.Error())
 	}
 	return nil
 }
 
-func stdout(r io.Reader, outputerArgs interface{}) error {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(r)
-	fmt.Print(buf.String())
-	return nil
+func stdout(buf *bytes.Buffer, outputerArgs interface{}) {
+	buf.WriteTo(os.Stdout)
 }
 
-func file(r io.Reader, outputerArgs interface{}) error {
+func file(buf *bytes.Buffer, outputerArgs interface{}) {
 	fileName := outputerArgs.(string)
 	if !gufile.Exists(fileName) {
 		path, err := gufile.GetPath(fileName)
 		if err != nil {
-			return err
+			logger.Error("RunTaskExecutor.file", err.Error())
+			return
 		}
 		fmt.Println(path)
 		if err := gufile.MkPath(path, 0777); err != nil {
-			return err
+			logger.Error("RunTaskExecutor.file", err.Error())
+			return
 		}
 	}
 	f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
-		return err
+		logger.Error("RunTaskExecutor.file", err.Error())
+		return
 	}
 	defer f.Close()
-	w := bufio.NewWriter(f)
-	defer w.Flush()
-	if _, err := io.Copy(w, r); err != nil {
-		return err
-	}
-	return nil
+	buf.WriteTo(f)
 }
 
 func sleep(c *flow.Context) {
