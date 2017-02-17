@@ -1,7 +1,6 @@
 package process
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"time"
@@ -85,7 +84,7 @@ func running(c *flow.Context) {
 	w := c.MustGet("workers").(*ccc.WorkersPool)
 	t := c.MustGet("task").(*conf.TaskT)
 	f := c.MustGet("func").(func(interface{}) interface{})
-	o := c.MustGet("outputer").(func(*bytes.Buffer, interface{}))
+	o := c.MustGet("outputer").(func([]byte, interface{}))
 	oa, _ := c.Get("outputerArgs")
 	w.Collect(f, map[string]interface{}{
 		"outputer":     o,
@@ -97,17 +96,18 @@ func running(c *flow.Context) {
 
 func cmd(params interface{}) interface{} {
 	mp := params.(map[string]interface{})
-	if err := handler.ExeSync(mp["outputer"].(func(*bytes.Buffer, interface{})), mp["outputerArgs"], mp["name"].(string), mp["args"].([]string)...); err != nil {
+	if err := handler.ExeSync(mp["outputer"].(func([]byte, interface{})), mp["outputerArgs"], mp["name"].(string), mp["args"].([]string)...); err != nil {
 		logger.Error("RunTaskExecutor.cmd", err.Error())
 	}
 	return nil
 }
 
-func stdout(buf *bytes.Buffer, outputerArgs interface{}) {
-	buf.WriteTo(os.Stdout)
+func stdout(buf []byte, outputerArgs interface{}) {
+	// buf.WriteTo(os.Stdout)
+	fmt.Print(string(buf))
 }
 
-func file(buf *bytes.Buffer, outputerArgs interface{}) {
+func file(buf []byte, outputerArgs interface{}) {
 	fileName := outputerArgs.(string)
 	if !gufile.Exists(fileName) {
 		path, err := gufile.GetPath(fileName)
@@ -115,7 +115,6 @@ func file(buf *bytes.Buffer, outputerArgs interface{}) {
 			logger.Error("RunTaskExecutor.file", err.Error())
 			return
 		}
-		fmt.Println(path)
 		if err := gufile.MkPath(path, 0777); err != nil {
 			logger.Error("RunTaskExecutor.file", err.Error())
 			return
@@ -127,7 +126,10 @@ func file(buf *bytes.Buffer, outputerArgs interface{}) {
 		return
 	}
 	defer f.Close()
-	buf.WriteTo(f)
+	if _, err := f.Write(buf); err != nil {
+		logger.Error("RunTaskExecutor.file", err.Error())
+		return
+	}
 }
 
 func sleep(c *flow.Context) {

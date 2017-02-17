@@ -1,32 +1,45 @@
 package handler
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
+	"time"
 )
 
-func ExeSync(outputer func(*bytes.Buffer, interface{}), outputerArgs interface{}, name string, arg ...string) error {
-	fmt.Printf("Exec: %s %v\n", name, strings.Join(arg, " "))
+func ExeSync(outputer func([]byte, interface{}), outputerArgs interface{}, name string, arg ...string) error {
+	fmt.Printf("Exec: %s %v %s\n", name, strings.Join(arg, " "), time.Now())
+	defer func() {
+		fmt.Printf("Finish: %s %v %s\n\n", name, strings.Join(arg, " "), time.Now())
+	}()
 	cmd := exec.Command(name, arg...)
-	out, err := cmd.StdoutPipe()
+	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
+	stdErr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+	multi := io.MultiReader(stdOut, stdErr)
+	sc := bufio.NewScanner(multi)
+
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	buf := new(bytes.Buffer)
+	// read command's stdout line by line
 	go func() {
-		_, err := buf.ReadFrom(out)
-		if err != nil {
-			panic(err.Error())
+		lines := []byte{}
+		for sc.Scan() {
+			l := append(sc.Bytes(), '\n')
+			lines = append(lines, l...)
 		}
-		outputer(buf, outputerArgs)
+		outputer(lines, outputerArgs)
 	}()
 	if err := cmd.Wait(); err != nil {
-		return err
+		panic(err.Error())
 	}
 	return nil
 }
