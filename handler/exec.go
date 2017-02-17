@@ -35,8 +35,11 @@ func ExeSync(outputer func([]byte, interface{}), outputerArgs interface{}, name 
 		for sc.Scan() {
 			l := append(sc.Bytes(), '\n')
 			lines = append(lines, l...)
+			if len(lines) > 100 {
+				outputer(lines, outputerArgs)
+				lines = []byte{}
+			}
 		}
-		outputer(lines, outputerArgs)
 	}()
 	if err := cmd.Wait(); err != nil {
 		panic(err.Error())
