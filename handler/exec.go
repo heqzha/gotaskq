@@ -10,9 +10,9 @@ import (
 )
 
 func ExeSync(outputer func([]byte, interface{}), outputerArgs interface{}, name string, arg ...string) error {
-	fmt.Printf("Exec: %s %v %s\n", name, strings.Join(arg, " "), time.Now())
+	fmt.Printf("Exec: %s %v (%s)\n", name, strings.Join(arg, " "), time.Now())
 	defer func() {
-		fmt.Printf("Finish: %s %v %s\n\n", name, strings.Join(arg, " "), time.Now())
+		fmt.Printf("Finish: %s %v (%s)\n\n", name, strings.Join(arg, " "), time.Now())
 	}()
 	cmd := exec.Command(name, arg...)
 	stdOut, err := cmd.StdoutPipe()
